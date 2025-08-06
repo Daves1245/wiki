@@ -1,0 +1,8 @@
+services:
+  wiki:
+    build: .
+    ports:
+      - "3030:5173"
+    volumes:
+      - ./public/wiki:/app/public/wiki
+    restart: unless-stopped

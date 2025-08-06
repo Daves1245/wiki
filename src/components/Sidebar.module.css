@@ -1,0 +1,115 @@
+/* Sidebar with container queries for responsive width */
+.sidebar {
+  --background: #010409;
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-color: #e4e4e7;
+  --text-secondary: #a1a1aa;
+  --border: #2d2d30;
+  --hover: #2a2a2d;
+  --active: #3f3f46;
+
+  font-family: var(--font-family);
+  color: var(--font-color);
+  container-type: inline-size;
+  width: clamp(180px, 20vw, 400px);
+  height: 100vh;
+  max-height: 100vh;
+  background: var(--background);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.75rem 0;
+  resize: horizontal;
+  min-width: 180px;
+  max-width: 40vw;
+  box-sizing: border-box;
+}
+
+/* Content Area */
+.content {
+  flex: 1;
+  background: #0f0f0f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 1.125rem;
+}
+
+/* Base Button Styles */
+.folderButton,
+.fileButton {
+  font-family: var(--font-family);
+  color: var(--font-color);
+  width: 100%;
+  text-align: left;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border: none;
+  background: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Folder Button Specific */
+.folderButton {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+  padding-right: 1rem;
+}
+
+.folderButton:hover {
+  background-color: var(--hover);
+}
+
+.folderButton:active {
+  background-color: var(--active);
+}
+
+/* File Button Specific */
+.fileButton {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-right: 16px;
+}
+
+.fileButton:hover:not(.selected) {
+  background-color: var(--hover);
+}
+
+.fileButton:active {
+  background-color: var(--active);
+}
+
+.fileButton.selected {
+  background-color: var(--active);
+}
+
+/* Folder Icon */
+.folderIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Item Text */
+.itemText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--font-color);
+  pointer-events: none;
+}
