@@ -80,6 +80,8 @@
   --heading-color: #5FAFFF;
   --foreground: #ffffff;
   --link-color: #FFA500;
+  --link-visited-color: #CC8400;
+  --accent-purple: #9F5FFF;
 }
 
 /* Dark mode overrides - disabled since we want consistent dark theme */
@@ -222,9 +224,18 @@ body {
   margin-bottom: 0;
 }
 
+.prose strong {
+  /* color: #ff87ae; */
+  /* color: #39417f; */
+  /* color: #eb7c9d; */
+  color: var(--accent-purple);
+}
+
 .prose a {
   color: var(--link-color) !important;
-  text-decoration: underline;
+}
+.prose a:visited {
+  color: var(--link-visited-color) !important;
 }
 
 .prose a:hover {
@@ -242,8 +253,9 @@ body {
 }
 
 .prose blockquote {
-  @apply border-l-4 pl-4 italic my-4;
-  border-color: var(--heading-color);
+  border-left: .13em solid var(--accent-purple);
+  padding-left: 0.5rem;
+  margin: 1rem 0;
   color: var(--foreground);
 }
 
