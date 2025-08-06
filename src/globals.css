@@ -106,7 +106,8 @@
 
 html {
   font-family: var(--font-family-sans);
-  line-height: 1.6;
+  line-height: 2;
+  font-size: large;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -216,7 +217,7 @@ body {
   padding-bottom: 0.5em;
   text-align: left;
   font-size: 0.95em;
-  line-height: 1.5em;
+  line-height: 2em;
   color: var(--foreground);
   margin-bottom: 0;
 }
@@ -247,9 +248,9 @@ body {
 }
 
 .prose code {
-  text-decoration-line: underline;
-  text-decoration-color: var(--foreground);
-  background-color: transparent !important;
+  background-color: var(--code-bg) !important;
+  border: 1px solid var(--code-border) !important;
+  border-radius: 3px;
   color: var(--foreground) !important;
   padding: 0.1em 0.2em;
 }
@@ -267,6 +268,7 @@ body {
 
 .prose pre code {
   background-color: transparent !important;
+  border: none !important;
   text-decoration: none;
   padding: 0;
 }
