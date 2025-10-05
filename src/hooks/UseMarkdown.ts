@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { SourceManager } from '../util/SourceManager';
 import type { Loadable } from '../types/Loadable';
-import type { Source } from '../types/SourceNode';
+import type { SourceNode } from '../types/SourceNode';
 import type { MarkdownFile } from '../types/Markdown';
 
 export function useMarkdownFiles(path: string) {
-    const [sources, setSources] = useState<Loadable<Source>>({ type: 'idle' });
+    const [sources, setSources] = useState<Loadable<SourceNode>>({ type: 'idle' });
     const sourceManagerRef = useRef<SourceManager | null>(null);
 
     useEffect(() => {
@@ -14,7 +14,7 @@ export function useMarkdownFiles(path: string) {
         }
 
         const manager = sourceManagerRef.current;
-        
+
         const ingestSources = async () => {
             await manager.ingest();
             setSources(manager.sources);
@@ -24,7 +24,7 @@ export function useMarkdownFiles(path: string) {
     }, [path]);
 
     const getDirectory = useCallback(async (dirPath: string) => {
-        if (!sourceManagerRef.current) return { type: 'error', msg: 'SourceManager not initialized' } as Loadable<Source[]>;
+        if (!sourceManagerRef.current) return { type: 'error', msg: 'SourceManager not initialized' } as Loadable<SourceNode[]>;
         return await sourceManagerRef.current.getDirectory(dirPath);
     }, []);
 

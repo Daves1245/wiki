@@ -81,7 +81,9 @@
   --foreground: #ffffff;
   --link-color: #FFA500;
   --link-visited-color: #CC8400;
+  --accent-teal: #00D4AA;
   --accent-purple: #9F5FFF;
+  --accent-red: #FF5F5F;
 }
 
 /* Dark mode overrides - disabled since we want consistent dark theme */
@@ -218,7 +220,7 @@ body {
   padding-top: 1em;
   padding-bottom: 0.5em;
   text-align: left;
-  font-size: 0.95em;
+  font-size: 1em;
   line-height: 2em;
   color: var(--foreground);
   margin-bottom: 0;
@@ -253,7 +255,7 @@ body {
 }
 
 .prose blockquote {
-  border-left: .13em solid var(--accent-purple);
+  border-left: .13em solid var(--accent-teal);
   padding-left: 0.5rem;
   margin: 1rem 0;
   color: var(--foreground);

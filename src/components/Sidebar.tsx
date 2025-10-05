@@ -1,75 +1,119 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Sidebar.module.css';
 import type { Loadable } from '../types/Loadable';
-import type { Source } from '../types/SourceNode';
+import type { SourceNode } from '../types/SourceNode';
+import type { VirtualTreeNode } from '../types/VirtualTreeNode';
 import type { MarkdownFile } from '../types/Markdown';
 
-interface TreeItem {
-  name: string;
-  type: 'folder' | 'file';
-  path: string;
-  children?: TreeItem[];
-  loadable?: Loadable<Source[]>;
-}
 
 interface SidebarProps {
-  sources: Loadable<Source>;
-  getDirectory: (dirPath: string) => Promise<Loadable<Source[]>>;
+  sources: Loadable<SourceNode>;
+  getDirectory: (dirPath: string) => Promise<Loadable<SourceNode[]>>;
   getFile: (slug: string) => Promise<Loadable<MarkdownFile>>;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ sources, getDirectory, getFile }) => {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [virtualTree, setVirtualTree] = useState<Loadable<VirtualTreeNode>>({ type: 'idle' });
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [loadedDirectories, setLoadedDirectories] = useState<Map<string, Loadable<Source[]>>>(new Map());
-  const [pendingDirectories, setPendingDirectories] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+
+  // Convert sources to virtual tree
+  const createVirtualTree = (source: SourceNode, isRoot = false): VirtualTreeNode => {
+    return {
+      expanded: isRoot, // Root defaults to expanded
+      childrenLoaded: false,
+      source,
+    };
+  };
+
+  // Update virtual tree when sources change
+  useEffect(() => {
+    if (sources.type === 'loading') {
+      setVirtualTree({ type: 'loading', taskId: sources.taskId });
+    } else if (sources.type === 'error') {
+      setVirtualTree({ type: 'error', msg: sources.msg });
+    } else if (sources.type === 'success') {
+      setVirtualTree({ type: 'success', data: createVirtualTree(sources.data, true) });
+    }
+  }, [sources]);
+
+  const updateVirtualTreeNode = (tree: VirtualTreeNode, path: string, updater: (node: VirtualTreeNode) => VirtualTreeNode): VirtualTreeNode => {
+    if (tree.source.path === path) {
+      return updater(tree);
+    }
+    if (tree.children) {
+      return {
+        ...tree,
+        children: tree.children.map(child => updateVirtualTreeNode(child, path, updater))
+      };
+    }
+    return tree;
+  };
+
+  const findVirtualTreeNode = (tree: VirtualTreeNode, path: string): VirtualTreeNode | null => {
+    if (tree.source.path === path) return tree;
+    if (tree.children) {
+      for (const child of tree.children) {
+        const found = findVirtualTreeNode(child, path);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
 
   const toggleFolder = (folderPath: string) => {
     console.log('Toggling folder:', folderPath);
 
-    const newExpanded = new Set(expandedFolders);
-    if (newExpanded.has(folderPath)) {
-      newExpanded.delete(folderPath);
-    } else {
-      newExpanded.add(folderPath);
+    if (virtualTree.type !== 'success') return;
 
-      // debounce directories (shouldn't be an issue)
-      if (!loadedDirectories.has(folderPath) && !pendingDirectories.has(folderPath)) {
-        console.log('Loading directory:', folderPath);
-        // mark as pending
-        setPendingDirectories(prev => new Set([...prev, folderPath]));
-        // mark Loadable directory as pending
-        setLoadedDirectories(prev => new Map([...prev, [folderPath, { type: 'loading', taskId: Date.now() }]]));
+    const currentNode = findVirtualTreeNode(virtualTree.data, folderPath);
+    if (!currentNode) return;
 
-        // load in the background
-        getDirectory(folderPath).then(directoryContents => {
-          setLoadedDirectories(prev => new Map([...prev, [folderPath, directoryContents]]));
-          setPendingDirectories(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(folderPath);
-            return newSet;
+    const wasExpanded = currentNode.expanded;
+    const willExpand = !wasExpanded;
+
+    // Toggle expansion state
+    setVirtualTree(prev => {
+      if (prev.type !== 'success') return prev;
+      
+      const updatedTree = updateVirtualTreeNode(prev.data, folderPath, node => ({
+        ...node,
+        expanded: !node.expanded
+      }));
+
+      return { ...prev, data: updatedTree };
+    });
+
+    // Load directory if expanding and children not loaded
+    if (willExpand && !currentNode.childrenLoaded) {
+      console.log('Loading directory:', folderPath);
+
+      getDirectory(folderPath).then(directoryContents => {
+        if (directoryContents.type === 'success') {
+          // Update the node with loaded children
+          setVirtualTree(prev => {
+            if (prev.type !== 'success') return prev;
+            
+            const updatedTree = updateVirtualTreeNode(prev.data, folderPath, node => ({
+              ...node,
+              childrenLoaded: true,
+              children: directoryContents.data.map(source => createVirtualTree(source, false))
+            }));
+
+            return { ...prev, data: updatedTree };
           });
 
           // pre-queue files in expanded directory
-          if (directoryContents.type === 'success') {
-            preQueueFiles(directoryContents.data);
-          }
-        }).catch(error => {
-          console.error('Failed to load directory:', error);
-          setPendingDirectories(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(folderPath);
-            return newSet;
-          });
-        });
-      }
+          preQueueFiles(directoryContents.data);
+        }
+      }).catch(error => {
+        console.error('Failed to load directory:', error);
+      });
     }
-    setExpandedFolders(newExpanded);
   };
 
-  const preQueueFiles = (sources: Source[]) => {
+  const preQueueFiles = (sources: SourceNode[]) => {
     console.log('Pre-queuing files for', sources.length, 'items');
 
     sources.forEach(source => {
@@ -92,90 +136,43 @@ const Sidebar: React.FC<SidebarProps> = ({ sources, getDirectory, getFile }) => 
     navigate(`/file/${slug}`);
   };
 
-  const sourceToTreeItem = (source: Source, basePath: string = ''): TreeItem => {
-    if (source.type === 'directory') {
-      return {
-        name: source.path.split('/').pop() || 'root',
-        type: 'folder',
-        path: source.path,
-        children: [], // populated when expanded
-      };
-    } else {
-      const pathParts = basePath.split('/');
-      const fileName = pathParts[pathParts.length - 1] || 'unknown.md';
-      return {
-        name: fileName,
-        type: 'file',
-        path: basePath,
-      };
-    }
-  };
 
-  // get children for a directory from loaded sources
-  const getDirectoryChildren = (dirPath: string): TreeItem[] => {
-    const loadable = loadedDirectories.get(dirPath);
-    if (loadable?.type === 'success') {
-      return loadable.data.map(source => {
-        if (source.type === 'directory') {
-          return sourceToTreeItem(source);
-        } else {
-          const fileName = source.path.split('/').pop() || 'unknown.md';
-          return {
-            name: fileName,
-            type: 'file' as const,
-            path: source.path,
-          };
-        }
-      });
-    }
+  const getDirectoryChildren = (): VirtualTreeNode[] => {
     return [];
   };
 
   const TreeItemComponent: React.FC<{
-    item: TreeItem;
-    path?: string;
-    depth?: number;
-  }> = ({ item, path = '', depth = 0 }) => {
-    const currentPath = path ? `${path}/${item.name}` : item.name;
-    const isExpanded = expandedFolders.has(item.path);
-    const isSelected = selectedFile === item.path;
+    node: VirtualTreeNode;
+    depth: number;
+  }> = ({ node, depth }) => {
+    const name = node.source.path.split('/').pop() || 'root';
+    const isExpanded = node.expanded;
+    const isSelected = selectedFile === node.source.path;
     const paddingLeft = `${1 + (depth * 1.25)}rem`;
 
-    if (item.type === 'folder') {
-      const directoryLoadable = loadedDirectories.get(item.path);
-      const children = getDirectoryChildren(item.path);
+    if (node.source.type === 'directory') {
+      const children = node.children || getDirectoryChildren();
 
       return (
         <div>
           <button
             className={styles.folderButton}
             style={{ paddingLeft }}
-            onClick={() => toggleFolder(item.path)}
+            onClick={() => toggleFolder(node.source.path)}
           >
             <span className={styles.folderIcon}>
               {isExpanded ? '⌄' : '›'}
             </span>
             <span className={styles.itemText}>
-              {item.name.replace(/\.md$/, '')}
+              {name.replace(/\.md$/, '')}
             </span>
           </button>
           {isExpanded && (
             <div>
-              {directoryLoadable?.type === 'loading' && (
-                <div style={{ paddingLeft: `${1 + ((depth + 1) * 1.25)}rem` }} className={styles.itemText}>
-                  Loading...
-                </div>
-              )}
-              {directoryLoadable?.type === 'error' && (
-                <div style={{ paddingLeft: `${1 + ((depth + 1) * 1.25)}rem` }} className={styles.itemText}>
-                  Error: {directoryLoadable.msg}
-                </div>
-              )}
               {children.map((child, index) => (
                 <TreeItemComponent
-                  key={`${child.path}-${index}`}
-                  item={child}
-                  path={currentPath}
+                  key={`${child.source.path}-${index}`}
+                  node={child}
                   depth={depth + 1}
                 />
               ))}
@@ -189,44 +186,38 @@ const Sidebar: React.FC<SidebarProps> = ({ sources, getDirectory, getFile }) => 
       <button
         className={`${styles.fileButton} ${isSelected ? styles.selected : ''}`}
         style={{ paddingLeft }}
-        onClick={() => selectFile(item.path)}
+        onClick={() => selectFile(node.source.path)}
       >
         <span className={styles.itemText}>
-          {item.name}
+          {name}
         </span>
       </button>
     );
   };
 
-  const getRootTree = (): TreeItem | null => {
-    if (sources.type === 'success') {
-      return sourceToTreeItem(sources.data);
-    }
-    return null;
-  };
 
   return (
     <div className={styles.sidebar}>
-      {sources.type === 'loading' && (
+      {virtualTree.type === 'loading' && (
         <div className={styles.itemText} style={{ padding: '1rem' }}>
           Loading wiki files...
         </div>
       )}
-      {sources.type === 'error' && (
-        <div className={styles.itemText} style={{ padding: '1rem', color: '#ef4444' }}>
-          Error: {sources.msg}
-        </div>
-      )}
-      {sources.type === 'idle' && (
-        <div className={styles.itemText} style={{ padding: '1rem' }}>
-          Initializing...
-        </div>
-      )}
-      {sources.type === 'success' && (
-        <TreeItemComponent item={getRootTree()!} />
-      )}
+  {virtualTree.type === 'error' && (
+    <div className={styles.itemText} style={{ padding: '1rem', color: '#ef4444' }}>
+      Error: {virtualTree.msg}
     </div>
+  )}
+  {virtualTree.type === 'idle' && (
+    <div className={styles.itemText} style={{ padding: '1rem' }}>
+      Initializing...
+    </div>
+  )}
+  {virtualTree.type === 'success' && (
+    <TreeItemComponent node={virtualTree.data} depth={0} />
+  )}
+</div>
   );
-};
+}
 
 export default Sidebar;

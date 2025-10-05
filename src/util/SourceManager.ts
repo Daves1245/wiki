@@ -1,14 +1,14 @@
 import type { Loadable } from "../types/Loadable";
-import type { Source } from "../types/SourceNode";
+import type { SourceNode } from "../types/SourceNode";
 import type { MarkdownFile } from "../types/Markdown";
 
 const API_BASE_URL = '/api';
 
 export class SourceManager {
     path: string;
-    sources: Loadable<Source> = { type: 'idle' }
+    sources: Loadable<SourceNode> = { type: 'idle' }
     private loadedFiles: Map<string, Loadable<MarkdownFile>> = new Map();
-    private loadedDirectories: Map<string, Loadable<Source[]>> = new Map();
+    private loadedDirectories: Map<string, Loadable<SourceNode[]>> = new Map();
 
     constructor(path: string) {
         this.path = path;
@@ -29,7 +29,7 @@ export class SourceManager {
 
             const data = await response.json();
 
-            const rootSource: Source = {
+            const rootSource: SourceNode = {
                 type: 'directory',
                 path: data.path,
                 children: data.children.map(() => ({ type: 'idle' as const }))
@@ -44,12 +44,12 @@ export class SourceManager {
         }
     }
 
-    async getDirectory(dirPath: string): Promise<Loadable<Source[]>> {
+    async getDirectory(dirPath: string): Promise<Loadable<SourceNode[]>> {
         if (this.loadedDirectories.has(dirPath)) {
             return this.loadedDirectories.get(dirPath)!;
         }
 
-        const loadable: Loadable<Source[]> = { type: 'loading', taskId: Date.now() };
+        const loadable: Loadable<SourceNode[]> = { type: 'loading', taskId: Date.now() };
         this.loadedDirectories.set(dirPath, loadable);
 
         try {
@@ -68,7 +68,7 @@ export class SourceManager {
             }
 
             const data = await response.json();
-            const sources: Source[] = [];
+            const sources: SourceNode[] = [];
 
             const items = data.children || data;
 
@@ -88,11 +88,11 @@ export class SourceManager {
                 }
             }
 
-            const successLoadable: Loadable<Source[]> = { type: 'success', data: sources };
+            const successLoadable: Loadable<SourceNode[]> = { type: 'success', data: sources };
             this.loadedDirectories.set(dirPath, successLoadable);
             return successLoadable;
         } catch (error) {
-            const errorLoadable: Loadable<Source[]> = {
+            const errorLoadable: Loadable<SourceNode[]> = {
                 type: 'error',
                 msg: error instanceof Error ? error.message : 'Failed to load directory'
             };
