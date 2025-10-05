@@ -228,7 +228,7 @@ body {
   /* color: #ff87ae; */
   /* color: #39417f; */
   /* color: #eb7c9d; */
-  color: var(--accent-purple);
+  color: var(--heading-color);
 }
 
 .prose a {
